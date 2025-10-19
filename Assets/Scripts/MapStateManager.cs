@@ -1,7 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
+
+
+[System.Serializable]
+public class SpendingEntry
+{
+    public string date;
+    public string category;
+    public float amount;
+}
+
+[System.Serializable]
+public class SpendingData
+{
+    public List<SpendingEntry> entries;
+}
 
 [System.Serializable]
 public class GameState
@@ -26,7 +42,8 @@ public class MapStateManager : MonoBehaviour
 {
     // Configuration
     private const int MAP_SIZE = 20;
-    private const string FILE_NAME = "map_state.json";
+    private const string STATE_FILE_NAME = "map_state.json";
+    private const string USER_DATA_FOLDER = "UserData/";
     private const string EMPTY = "0";
     private const string ROAD = "1";
     private const string HOUSE = "H";
@@ -45,61 +62,182 @@ public class MapStateManager : MonoBehaviour
     public GameObject treePrefab;
     public GameObject roadPrefab;
 
-    // List of all available non-house building types
-    private static readonly string[] ALL_BUILDING_TYPES = { ONLINE_SHOPPING, SHOPPING, EATING_OUT, NIGHT, GROCERIES };
+    private string currentUserEmail;
 
-    private string GetFilePath()
+    private string GetFilePath(string fileName)
     {
-        return Path.Combine(Application.dataPath, FILE_NAME);
+        return Path.Combine(Application.dataPath, fileName);
+    }
+
+    private string GetUserEmail()
+    {
+        // Retrieve the email saved by LoginManager
+        string email = PlayerPrefs.GetString("CurrentUserEmail", "");
+        
+        if (string.IsNullOrEmpty(email))
+        {
+            Debug.LogError("No user email found in PlayerPrefs. User must log in first.");
+        }
+        
+        return email;
+    }
+
+    private string SanitizeEmailForFilename(string email)
+    {
+        // Same sanitization logic as LoginManager
+        return email.Replace("@", "_at_").Replace(".", "_");
+    }
+
+    private string MapCategoryToBuildingType(string category)
+    {
+        switch (category)
+        {
+            case "EO": return "M"; // Eating Out
+            case "OS": return "W"; // Online Shopping
+            case "SH": return "F"; // Shein
+            case "NI": return "N"; // Nightlife
+            case "GR": return "T"; // Groceries
+            default: return category;
+        }
+    }
+
+    private string GetSpendingFilePath()
+    {
+        string email = GetUserEmail();
+        
+        if (string.IsNullOrEmpty(email))
+        {
+            return null;
+        }
+
+        string sanitized = SanitizeEmailForFilename(email);
+        string fileName = $"{sanitized}_data.json";
+        
+        // Check in UserData folder first (as created by LoginManager)
+        string userDataPath = Path.Combine(Application.dataPath, USER_DATA_FOLDER, fileName);
+        if (File.Exists(userDataPath))
+        {
+            return userDataPath;
+        }
+        
+        // Fallback to Assets root
+        string assetsPath = Path.Combine(Application.dataPath, fileName);
+        if (File.Exists(assetsPath))
+        {
+            return assetsPath;
+        }
+
+        Debug.LogError($"Spending data file not found at {userDataPath} or {assetsPath}");
+        return null;
+    }
+
+    public List<SpendingEntry> LoadSpendingData()
+    {
+        string filePath = GetSpendingFilePath();
+        
+        if (string.IsNullOrEmpty(filePath))
+        {
+            Debug.LogError("Could not determine spending data file path.");
+            return new List<SpendingEntry>();
+        }
+
+        string json = File.ReadAllText(filePath);
+        
+        // Wrap the array in an object for Unity's JsonUtility
+        string wrappedJson = "{\"entries\":" + json + "}";
+        SpendingData data = JsonUtility.FromJson<SpendingData>(wrappedJson);
+        Debug.Log($"File path being checked: {filePath}");
+        
+        Debug.Log($"Loaded {data.entries.Count} spending entries from {filePath}");
+        return data.entries;
+    }
+
+    public Dictionary<string, int> CalculateBuildingCounts(List<SpendingEntry> spendingData)
+    {
+        // Group by category and sum amounts
+        Dictionary<string, float> categoryTotals = new Dictionary<string, float>();
+        
+        foreach (var entry in spendingData)
+        {
+            if (!categoryTotals.ContainsKey(entry.category))
+            {
+                categoryTotals[entry.category] = 0;
+            }
+            categoryTotals[entry.category] += entry.amount;
+        }
+
+        // Calculate total spending
+        float totalSpending = categoryTotals.Values.Sum();
+        
+        // Available spots (excluding roads and house)
+        int roadRows = MAP_SIZE / 2; // Every other row
+        int totalCells = MAP_SIZE * MAP_SIZE;
+        int roadCells = roadRows * MAP_SIZE;
+        int availableSpots = totalCells - roadCells - 1; // -1 for house
+
+        Debug.Log($"Total spending: {totalSpending}, Available spots: {availableSpots}");
+
+        // Calculate building count per category based on spending proportion
+        Dictionary<string, int> buildingCounts = new Dictionary<string, int>();
+        
+        foreach (var kvp in categoryTotals)
+        {
+            float proportion = kvp.Value / totalSpending;
+            int count = Mathf.RoundToInt(proportion * availableSpots);
+            buildingCounts[kvp.Key] = Mathf.Max(1, count); // At least 1 building per category
+            Debug.Log($"Category {kvp.Key}: ${kvp.Value:F2} ({proportion:P1}) -> {count} buildings");
+        }
+
+        return buildingCounts;
     }
 
     public GameState LoadGameState()
-{
-    string filePath = GetFilePath();
-
-    // Default blank state
-    GameState defaultState = new GameState();
-    for (int i = 0; i < MAP_SIZE; i++)
     {
-        List<string> row = new List<string>();
-        for (int j = 0; j < MAP_SIZE; j++)
+        string filePath = GetFilePath(STATE_FILE_NAME);
+
+        // Default blank state
+        GameState defaultState = new GameState();
+        for (int i = 0; i < MAP_SIZE; i++)
         {
-            row.Add(EMPTY);
+            List<string> row = new List<string>();
+            for (int j = 0; j < MAP_SIZE; j++)
+            {
+                row.Add(EMPTY);
+            }
+            defaultState.map_data.Add(row);
         }
-        defaultState.map_data.Add(row);
-    }
 
-    if (File.Exists(filePath))
-    {
-        string json = File.ReadAllText(filePath);
-
-        if (string.IsNullOrWhiteSpace(json))
+        if (File.Exists(filePath))
         {
-            Debug.Log("Existing file is empty, reinitialising new state...");
+            string json = File.ReadAllText(filePath);
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                Debug.Log("Existing file is empty, reinitialising new state...");
+                return defaultState;
+            }
+
+            Debug.Log($"Loading existing state from {filePath}...");
+            GameState loadedState = JsonUtility.FromJson<GameState>(json);
+
+            if (loadedState.map_data == null || loadedState.map_data.Count == 0)
+            {
+                Debug.Log("Loaded file has no map data, regenerating default map...");
+                return defaultState;
+            }
+
+            return loadedState;
+        }
+        else
+        {
+            Debug.Log("No existing state found. Initializing new map...");
             return defaultState;
         }
-
-        Debug.Log($"Loading existing state from {filePath}...");
-        GameState loadedState = JsonUtility.FromJson<GameState>(json);
-
-        if (loadedState.map_data == null || loadedState.map_data.Count == 0)
-        {
-            Debug.Log("Loaded file has no map data, regenerating default map...");
-            return defaultState;
-        }
-
-        return loadedState;
     }
-    else
-    {
-        Debug.Log("No existing state found. Initializing new map...");
-        return defaultState;
-    }
-}
 
     public void SaveGameState(GameState state)
     {
-        string filePath = GetFilePath();
+        string filePath = GetFilePath(STATE_FILE_NAME);
         string json = JsonUtility.ToJson(state, true);
         File.WriteAllText(filePath, json);
         Debug.Log($"State successfully saved to {filePath}");
@@ -146,16 +284,22 @@ public class MapStateManager : MonoBehaviour
             }
         }
     }
-    string GetSpentOnFromType(string type) { 
-        switch (type) { 
-            case "M": return "Eating Out"; 
-            case "W": return "Online Shopping"; 
-            case "F": return "Shein"; 
-            case "N": return "Nightlife"; 
-            case "T": return "Groceries"; 
-            case "S": return "Retail Shopping"; 
-            case "H": return "Rent"; 
-            default: return "Misc"; } }
+
+    string GetSpentOnFromType(string type)
+    {
+        switch (type)
+        {
+            case "M": return "Eating Out";
+            case "W": return "Online Shopping";
+            case "F": return "Shein";
+            case "N": return "Nightlife";
+            case "T": return "Groceries";
+            case "S": return "Retail Shopping";
+            case "H": return "Rent";
+            case "A": return "Activities";
+            default: return "Misc";
+        }
+    }
 
     public GameState PlaceHouse(GameState state)
     {
@@ -165,9 +309,9 @@ public class MapStateManager : MonoBehaviour
             return state;
         }
 
-        // Determine random coordinates (0 to 9)
-        int row = UnityEngine.Random.Range(0, MAP_SIZE);
-        int col = UnityEngine.Random.Range(0, MAP_SIZE);
+        // Place house in center of map
+        int row = MAP_SIZE / 2;
+        int col = MAP_SIZE / 2;
 
         // Update the map and state variables
         if (state.map_data[row][col] == EMPTY)
@@ -177,47 +321,72 @@ public class MapStateManager : MonoBehaviour
             state.house_location = new List<int> { row, col };
         }
 
-        Debug.Log($"House randomly placed at Row: {row}, Col: {col}");
+        Debug.Log($"House placed at center: Row: {row}, Col: {col}");
         return state;
     }
 
     public (GameState, List<object>) PlaceBuildingRandom(GameState state, string buildingType)
     {
-        // Repeatedly attempt to find an empty spot
-        while (true)
+        int maxAttempts = 1000;
+        int attempts = 0;
+
+        while (attempts < maxAttempts)
         {
             int row = UnityEngine.Random.Range(0, MAP_SIZE);
             int col = UnityEngine.Random.Range(0, MAP_SIZE);
 
-            // Check if the spot is EMPTY
             if (state.map_data[row][col] == EMPTY)
             {
-                // Place the building and exit the loop
                 state.map_data[row][col] = buildingType;
                 List<object> location = new List<object> { row, col, buildingType };
-
-                Debug.Log($"Building {buildingType} randomly placed at Row: {row}, Col: {col}");
+                Debug.Log($"Building {buildingType} placed at Row: {row}, Col: {col}");
                 return (state, location);
             }
+            attempts++;
         }
+
+        Debug.LogWarning($"Could not find empty spot for {buildingType} after {maxAttempts} attempts");
+        return (state, null);
     }
 
     public void AddBuilding(string buildingType, GameState gameState)
     {
         var (updatedState, newLocation) = PlaceBuildingRandom(gameState, buildingType);
         
-        // Manually update the building_locations list and flag
-        gameState.building_locations.Add(newLocation);
-        gameState.buildings_placed = true;
+        if (newLocation != null)
+        {
+            gameState.building_locations.Add(newLocation);
+            gameState.buildings_placed = true;
+        }
     }
 
-    // --- Main Logic ---
     void Start()
     {
-        // 1. Load the state from the file
-        GameState gameState = LoadGameState();
+        // 1. Load spending data
+        List<SpendingEntry> spendingData = LoadSpendingData();
+        
+        if (spendingData.Count == 0)
+        {
+            Debug.LogError("No spending data available. Cannot generate map.");
+            return;
+        }
 
-        // 2. Place rows of roads
+        // 2. Calculate building counts based on spending
+        Dictionary<string, int> buildingCounts = CalculateBuildingCounts(spendingData);
+
+        // 3. Initialize game state
+        GameState gameState = new GameState();
+        for (int i = 0; i < MAP_SIZE; i++)
+        {
+            List<string> row = new List<string>();
+            for (int j = 0; j < MAP_SIZE; j++)
+            {
+                row.Add(EMPTY);
+            }
+            gameState.map_data.Add(row);
+        }
+
+        // 4. Place roads (every other row)
         for (int i = 1; i < MAP_SIZE; i += 2)
         {
             for (int j = 0; j < MAP_SIZE; j++)
@@ -226,37 +395,26 @@ public class MapStateManager : MonoBehaviour
             }
         }
 
-        // 3. Run the house placement logic
+        // 5. Place house
         gameState = PlaceHouse(gameState);
 
-        // 4. INITIAL BUILDING PLACEMENT: Uncomment this if you need to add a new building
-        foreach (string buildingType in ALL_BUILDING_TYPES)
+        // 6. Place buildings based on spending data
+        foreach (var kvp in buildingCounts)
         {
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
-            AddBuilding(buildingType, gameState);
+            string category = kvp.Key;
+            int count = kvp.Value;
+
+            for (int i = 0; i < count; i++)
+            {
+                AddBuilding(MapCategoryToBuildingType(category), gameState);
+            }
         }
 
-        // 5. Save the updated state permanently
+        // 7. Save the state
         SaveGameState(gameState);
 
-        // 6. Render the map based on the current state
+        // 8. Render the map
         RenderMap(gameState);
-        Debug.Log($"JSON content:\n{JsonUtility.ToJson(gameState, true)}");
+        Debug.Log($"Map generated based on spending data:\n{JsonUtility.ToJson(gameState, true)}");
     }
 }
