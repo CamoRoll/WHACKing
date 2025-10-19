@@ -1,37 +1,37 @@
 [
   {
     "date": "2025-10-14",
-    "category": "OS",
+    "category": "A",
     "amount": 26.71
   },
   {
     "date": "2025-10-15",
-    "category": "OS",
+    "category": "A",
     "amount": 40.57
   },
   {
     "date": "2025-10-18",
-    "category": "G",
+    "category": "T",
     "amount": 59.58
   },
   {
     "date": "2025-10-18",
-    "category": "EO",
+    "category": "M",
     "amount": 18.09
   },
   {
     "date": "2025-10-19",
-    "category": "EO",
+    "category": "M",
     "amount": 24.26
   },
   {
     "date": "2025-10-15",
-    "category": "G",
+    "category": "T",
     "amount": 53.59
   },
   {
     "date": "2025-10-14",
-    "category": "OS",
+    "category": "A",
     "amount": 44.46
   },
   {
@@ -41,17 +41,17 @@
   },
   {
     "date": "2025-10-15",
-    "category": "EO",
+    "category": "M",
     "amount": 22.78
   },
   {
     "date": "2025-10-14",
-    "category": "S",
+    "category": "F",
     "amount": 64.07
   },
   {
     "date": "2025-10-13",
-    "category": "EO",
+    "category": "M",
     "amount": 13.86
   },
   {
@@ -61,17 +61,17 @@
   },
   {
     "date": "2025-10-19",
-    "category": "OS",
+    "category": "A",
     "amount": 25.31
   },
   {
     "date": "2025-10-18",
-    "category": "EO",
+    "category": "M",
     "amount": 24.77
   },
   {
     "date": "2025-10-19",
-    "category": "G",
+    "category": "T",
     "amount": 50.92
   }
 ]

@@ -952,7 +952,6 @@ MonoBehaviour:
   nightclubPrefab: {fileID: 6644162249157567033, guid: b05e5d07984053b4e9c7c81c304c0898, type: 3}
   treePrefab: {fileID: 5383344353490535480, guid: 360e273cd1c5c3647b9de68767808c43, type: 3}
   roadPrefab: {fileID: 7744427799638025267, guid: 0eba575f5de60564a8970f4c5aba91fd, type: 3}
-  shopPrefab: {fileID: 4382843599312249501, guid: 901b1e4ee3dfe2a41889909b229bda03, type: 3}
 --- !u!4 &1284908562
 Transform:
   m_ObjectHideFlags: 0
@@ -1141,8 +1140,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4294835709
+  m_fontColor: {r: 0.9924528, g: 0.9924528, b: 0.9924528, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
