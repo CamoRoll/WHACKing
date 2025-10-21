@@ -945,6 +945,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abe42a39f206071428c6d2bb40cc39d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  stickmanPrefab: {fileID: 4235506300785957445, guid: 64f53f1fcef265b40a7915c4b813a155, type: 3}
   housePrefab: {fileID: 8348800599052114049, guid: a7566a3d7c705594b808624a9c458a05, type: 3}
   warehousePrefab: {fileID: 6896115822211272555, guid: bc94f57b91de42741921ca760da16e45, type: 3}
   factoryPrefab: {fileID: 6452218366564430886, guid: 18d46fc8a6e519c4cb9321169fe1201a, type: 3}

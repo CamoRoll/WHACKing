@@ -1,0 +1,77 @@
+[
+  {
+    "date": "2025-10-14",
+    "category": "A",
+    "amount": 26.71
+  },
+  {
+    "date": "2025-10-15",
+    "category": "A",
+    "amount": 40.57
+  },
+  {
+    "date": "2025-10-18",
+    "category": "T",
+    "amount": 59.58
+  },
+  {
+    "date": "2025-10-18",
+    "category": "M",
+    "amount": 18.09
+  },
+  {
+    "date": "2025-10-19",
+    "category": "M",
+    "amount": 24.26
+  },
+  {
+    "date": "2025-10-15",
+    "category": "T",
+    "amount": 53.59
+  },
+  {
+    "date": "2025-10-14",
+    "category": "A",
+    "amount": 44.46
+  },
+  {
+    "date": "2025-10-13",
+    "category": "N",
+    "amount": 57.48
+  },
+  {
+    "date": "2025-10-15",
+    "category": "M",
+    "amount": 22.78
+  },
+  {
+    "date": "2025-10-14",
+    "category": "F",
+    "amount": 64.07
+  },
+  {
+    "date": "2025-10-13",
+    "category": "M",
+    "amount": 13.86
+  },
+  {
+    "date": "2025-10-19",
+    "category": "N",
+    "amount": 87.4
+  },
+  {
+    "date": "2025-10-19",
+    "category": "A",
+    "amount": 25.31
+  },
+  {
+    "date": "2025-10-18",
+    "category": "M",
+    "amount": 24.77
+  },
+  {
+    "date": "2025-10-19",
+    "category": "T",
+    "amount": 50.92
+  }
+]

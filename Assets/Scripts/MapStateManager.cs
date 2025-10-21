@@ -23,6 +23,7 @@ public class SpendingData
 public class GameState
 {
     public List<List<string>> map_data;
+    public int credit_score;
     public bool house_placed;
     public List<int> house_location;
     public bool buildings_placed;
@@ -41,6 +42,7 @@ public class GameState
 public class MapStateManager : MonoBehaviour
 {
     // Configuration
+    public GameObject stickmanPrefab;
     private const int MAP_SIZE = 20;
     private const string STATE_FILE_NAME = "map_state.json";
     private const string USER_DATA_FOLDER = "UserData/";
@@ -300,6 +302,44 @@ public class MapStateManager : MonoBehaviour
             default: return "Misc";
         }
     }
+    void SpawnStickmen(GameState state)
+    {
+        List<Vector3> roadPositions = new List<Vector3>();
+        float cellSize = 1.0f;
+
+        // Find all road tiles
+        for (int row = 0; row < MAP_SIZE; row++)
+        {
+            for (int col = 0; col < MAP_SIZE; col++)
+            {
+                if (state.map_data[row][col] == "1")
+                {
+                    float offsetX = -(MAP_SIZE * cellSize) / 2f;
+                    float offsetY = (MAP_SIZE * cellSize) / 2f;
+
+                    Vector3 pos = new Vector3(
+                        offsetX + col * cellSize + cellSize / 2f,
+                        offsetY - row * cellSize - cellSize / 2f,
+                        0
+                    );
+                    roadPositions.Add(pos);
+                }
+            }
+        }
+
+        // Calculate how many stickmen based on credit score
+        int stickmanCount = Mathf.Clamp(state.credit_score / 100, 1, 10);
+
+        // Randomly spawn them
+        for (int i = 0; i < stickmanCount && roadPositions.Count > 0; i++)
+        {
+            int index = UnityEngine.Random.Range(0, roadPositions.Count);
+            Vector3 spawnPos = roadPositions[index];
+            roadPositions.RemoveAt(index);
+
+            Instantiate(stickmanPrefab, spawnPos, Quaternion.identity);
+        }
+    }
 
     public GameState PlaceHouse(GameState state)
     {
@@ -362,6 +402,9 @@ public class MapStateManager : MonoBehaviour
 
     void Start()
     {
+        string savedScore = PlayerPrefs.GetString("CurrentUserCreditScore", "0");
+        int creditScore = 0;
+        int.TryParse(savedScore, out creditScore);
         // 1. Load spending data
         List<SpendingEntry> spendingData = LoadSpendingData();
         
@@ -385,6 +428,7 @@ public class MapStateManager : MonoBehaviour
             }
             gameState.map_data.Add(row);
         }
+        gameState.credit_score = creditScore;
 
         // 4. Place roads (every other row)
         for (int i = 1; i < MAP_SIZE; i += 2)
@@ -415,6 +459,7 @@ public class MapStateManager : MonoBehaviour
 
         // 8. Render the map
         RenderMap(gameState);
+        SpawnStickmen(gameState);
         Debug.Log($"Map generated based on spending data:\n{JsonUtility.ToJson(gameState, true)}");
     }
 }
